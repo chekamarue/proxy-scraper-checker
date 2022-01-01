@@ -104,7 +104,7 @@ class ProxyScraperChecker:
                 status = r.status
                 text = await r.text(encoding="utf-8")
         except Exception as e:
-            logging.error(f"{source}: {e}")
+            logging.error("%s: %s", source, e)
         else:
             if status == 200:
                 for proxy in text.splitlines():
@@ -119,7 +119,7 @@ class ProxyScraperChecker:
                         continue
                     self.proxies[proto][proxy] = None
             else:
-                logging.error(f"{source} status code: {status}")
+                logging.error("%s status code: %s", source, status)
 
     async def check_proxy(self, proxy: str, proto: str) -> None:
         """Check proxy validity.
@@ -164,7 +164,7 @@ class ProxyScraperChecker:
 
     async def check_all_proxies(self) -> None:
         for proto, proxies in self.proxies.items():
-            logging.info(f"Checking {len(proxies)} {proto} proxies")
+            logging.info("Checking %s %s proxies", len(proxies), proto)
         coroutines = [
             self.check_proxy(proxy, proto)
             for proto, proxies in self.proxies.items()
@@ -251,7 +251,7 @@ class ProxyScraperChecker:
 
         logging.info("Result:")
         for proto, proxies in self.proxies.items():
-            logging.info(f"{proto} - {len(proxies)}")
+            logging.info("%s - %s", proto, len(proxies))
 
         self.sort_proxies()
         self.save_proxies()
