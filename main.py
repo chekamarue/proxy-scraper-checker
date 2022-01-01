@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import asyncio
+from contextlib import suppress
 from ipaddress import IPv4Address
 from os import mkdir
 from random import shuffle
@@ -67,11 +68,6 @@ class ProxyScraperChecker:
         }
         self.proxies_count = {proto: 0 for proto in self.SOURCES}
         self.c = console or Console()
-
-    @staticmethod
-    def append_to_file(file_path: str, content: str) -> None:
-        with open(file_path, "a", encoding="utf-8") as f:
-            f.write(f"{content}\n")
 
     @staticmethod
     def get_geolocation(ip: Optional[str], reader: Reader) -> str:
@@ -230,38 +226,62 @@ class ProxyScraperChecker:
             "proxies_geolocation_anonymous",
         )
         for dir in dirs_to_delete:
-            try:
+            with suppress(FileNotFoundError):
                 rmtree(dir)
-            except FileNotFoundError:
-                pass
         dirs_to_create = (
             dirs_to_delete if self.MMDB else ("proxies", "proxies_anonymous")
         )
         for dir in dirs_to_create:
             mkdir(dir)
 
+        anon_proxies = {
+            proto: {
+                proxy: exit_node
+                for proxy, exit_node in proxies.items()
+                if exit_node != proxy.split(":")[0]
+            }
+            for proto, proxies in self.proxies.items()
+        }
         # proxies and proxies_anonymous folders
         for proto, proxies in self.proxies.items():
-            path = f"proxies/{proto}.txt"
-            path_anonymous = f"proxies_anonymous/{proto}.txt"
-            for proxy, exit_node in proxies.items():
-                self.append_to_file(path, proxy)
-                if exit_node != proxy.split(":")[0]:
-                    self.append_to_file(path_anonymous, proxy)
+            text = "\n".join(proxies)
+            with open(f"proxies/{proto}", "w", encoding="utf-8") as f:
+                f.write(text)
+            anon_text = "\n".join(anon_proxies[proto])
+            with open(
+                f"proxies_anonymous/{proto}.txt", "w", encoding="utf-8"
+            ) as f:
+                f.write(anon_text)
 
         # proxies_geolocation and proxies_geolocation_anonymous folders
-        if self.MMDB:
-            with open_database(self.MMDB) as reader:
-                for proto, proxies in self.proxies.items():
-                    path = f"proxies_geolocation/{proto}.txt"
-                    path_anonymous = (
-                        f"proxies_geolocation_anonymous/{proto}.txt"
-                    )
-                    for proxy, exit_node in proxies.items():
-                        line = proxy + self.get_geolocation(exit_node, reader)
-                        self.append_to_file(path, line)
-                        if exit_node != proxy.split(":")[0]:
-                            self.append_to_file(path_anonymous, line)
+        if not self.MMDB:
+            return
+        with open_database(self.MMDB) as reader:
+            geolocations = {
+                proto: {
+                    proxy: self.get_geolocation(exit_node, reader)
+                    for proxy, exit_node in proxies.items()
+                }
+                for proto, proxies in self.proxies.items()
+            }
+        for proto, proxies in self.proxies.items():
+            text = "\n".join(
+                f"{proxy}{geolocations[proto][proxy]}" for proxy in proxies
+            )
+            with open(
+                f"proxies_geolocation/{proto}.txt", "w", encoding="utf-8"
+            ) as f:
+                f.write(text)
+            anon_text = "\n".join(
+                f"{proxy}{geolocations[proto][proxy]}"
+                for proxy in anon_proxies[proto]
+            )
+            with open(
+                f"proxies_geolocation_anonymous/{proto}.txt",
+                "w",
+                encoding="utf-8",
+            ) as f:
+                f.write(anon_text)
 
     async def main(self) -> None:
         await self.fetch_all_sources()
