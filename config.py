@@ -9,6 +9,9 @@ TIMEOUT = 10
 # Don't set higher than 950, please.
 MAX_CONNECTIONS = 950
 
+# Set to False to sort proxies alphabetically.
+SORT_BY_SPEED = True
+
 # Add geolocation info for each proxy (True or False).
 # Output format is ip:port::Country::Region::City
 GEOLOCATION = True
