@@ -1,5 +1,9 @@
 # YYYY-MM-DD
 
+## 2021-01-02
+
+- Add `SORT_BY_SPEED` option.
+
 ## 2022-01-01
 
 - Improve the file saving algorithm.
