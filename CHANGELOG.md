@@ -1,12 +1,16 @@
 # YYYY-MM-DD
 
+## 2021-01-03
+
+- Add `SAVE_PATH` option
+
 ## 2021-01-02
 
-- Add `SORT_BY_SPEED` option.
+- Add `SORT_BY_SPEED` option
 
 ## 2022-01-01
 
-- Improve the file saving algorithm.
+- Improve the file saving algorithm
 
 ## 2021-12-28
 

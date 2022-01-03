@@ -19,6 +19,10 @@ GEOLOCATION = True
 # Service for checking the IP address.
 IP_SERVICE = "https://checkip.amazonaws.com"
 
+# Path to the folder where the proxy folders will be saved.
+# Leave the quotes empty to save the proxies to the current directory.
+SAVE_PATH = ""
+
 # PROTOCOL - whether to enable checking certain protocol proxies (True or False).
 # PROTOCOL_SOURCES - proxy lists URLs.
 HTTP = True
