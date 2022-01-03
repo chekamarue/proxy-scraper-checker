@@ -2,7 +2,7 @@
 
 ![Screenshot](screenshot.png)
 
-Check free anonymous HTTP, SOCKS4, SOCKS5 proxies from different sources. Supports determining exit-node's geolocation for each proxy.
+HTTP, SOCKS4, SOCKS5 proxies scraper and checker. Supports determining exit-node's geolocation for each proxy.
 
 For a version with fancy output powered by [rich](https://github.com/willmcgugan/rich), see the [main](https://github.com/monosans/proxy-scraper-checker) branch.
 
@@ -12,7 +12,7 @@ You can get proxies obtained using this script in <https://github.com/monosans/p
 
 - Make sure `Python` version is 3.7 or higher.
 - Install dependencies from `requirements.txt` (`python -m pip install -U -r requirements.txt`).
-  - If you get an error while installing dependencies, remove the `cchardet<3.0.0` line from the `requirements.txt` file and try installing them again.
+  - If you want to improve the performance, you can also install `cchardet`. See [aiohttp documentation](https://docs.aiohttp.org/en/stable/index.html?highlight=cchardet#library-installation).
 - Edit `config.py` according to your preference.
 - Run `main.py`.
 

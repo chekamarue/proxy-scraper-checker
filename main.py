@@ -4,7 +4,7 @@ import asyncio
 import logging
 from contextlib import suppress
 from ipaddress import IPv4Address
-from os import mkdir
+from pathlib import Path
 from random import shuffle
 from shutil import rmtree
 from time import perf_counter
@@ -20,18 +20,18 @@ import config
 
 class Proxy:
     def __init__(self, socket_address: str) -> None:
-        self.socket_address = socket_address
-        self._ip = socket_address.split(":")[0]
+        self.SOCKET_ADDRESS = socket_address
+        self._IP = socket_address.split(":")[0]
         self.exit_node: Optional[str] = None
         self.is_anonymous: Optional[bool] = None
         self.geolocation = "::None::None::None"
-        self.timeout: float = float("inf")
+        self.timeout = float("inf")
 
     def set_anonymity(self) -> None:
-        self.is_anonymous = self._ip != self.exit_node
+        self.is_anonymous = self._IP != self.exit_node
 
     def set_geolocation(self, reader: Reader) -> None:
-        geolocation = reader.get(self._ip)
+        geolocation = reader.get(self._IP)
         if not isinstance(geolocation, dict):
             return
         country = geolocation.get("country")
@@ -52,10 +52,10 @@ class Proxy:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Proxy):
             return NotImplemented
-        return self.socket_address == other.socket_address
+        return self.SOCKET_ADDRESS == other.SOCKET_ADDRESS
 
     def __hash__(self) -> int:
-        return hash(("socket_address", self.socket_address))
+        return hash(("socket_address", self.SOCKET_ADDRESS))
 
 
 class ProxyScraperChecker:
@@ -67,24 +67,29 @@ class ProxyScraperChecker:
         sort_by_speed: bool = True,
         geolite2_city_mmdb: Optional[str] = None,
         ip_service: str = "https://checkip.amazonaws.com",
+        save_path: str = "",
         http_sources: Optional[Iterable[str]] = None,
         socks4_sources: Optional[Iterable[str]] = None,
         socks5_sources: Optional[Iterable[str]] = None,
     ) -> None:
-        """Scrape and check proxies from sources and save them to files.
+        """HTTP, SOCKS4, SOCKS5 proxies scraper and checker.
 
         Args:
-            max_connections (int): Maximum concurrent connections.
             timeout (float): How many seconds to wait for the connection.
+            max_connections (int): Maximum concurrent connections.
+            sort_by_speed (bool): Set to False to sort proxies alphabetically.
             geolite2_city_mmdb (str): Path to the GeoLite2-City.mmdb if you
                 want to add location info for each proxy.
             ip_service (str): Service for getting your IP address and checking
                 if proxies are valid.
+            save_path (str): Path to the folder where the proxy folders will be
+                saved.
         """
         self.sem = asyncio.Semaphore(max_connections)
         self.IP_SERVICE = ip_service.strip()
         self.SORT_BY_SPEED = sort_by_speed
         self.TIMEOUT = timeout
+        self.PATH = save_path
         self.MMDB = geolite2_city_mmdb
         self.SOURCES = {
             proto: (sources,)
@@ -145,7 +150,7 @@ class ProxyScraperChecker:
             async with self.sem:
                 async with ClientSession(
                     connector=ProxyConnector.from_url(
-                        f"{proto}://{proxy.socket_address}"
+                        f"{proto}://{proxy.SOCKET_ADDRESS}"
                     )
                 ) as session:
                     async with session.get(
@@ -211,58 +216,55 @@ class ProxyScraperChecker:
 
     def save_proxies(self) -> None:
         """Delete old proxies and save new ones."""
-        dirs_to_delete = (
-            "proxies",
-            "proxies_anonymous",
-            "proxies_geolocation",
-            "proxies_geolocation_anonymous",
+        path = Path(self.PATH)
+        dirs = tuple(
+            path / dir
+            for dir in (
+                "proxies",
+                "proxies_anonymous",
+                "proxies_geolocation",
+                "proxies_geolocation_anonymous",
+            )
         )
-        for dir in dirs_to_delete:
+        for dir in dirs:
             with suppress(FileNotFoundError):
                 rmtree(dir)
-        dirs_to_create = (
-            dirs_to_delete if self.MMDB else ("proxies", "proxies_anonymous")
-        )
-        for dir in dirs_to_create:
-            mkdir(dir)
 
         # proxies and proxies_anonymous folders
+        for dir in dirs[:2]:
+            dir.mkdir(parents=True, exist_ok=True)
         for proto, proxies in self.proxies.items():
-            text = "\n".join(proxy.socket_address for proxy in proxies)
-            with open(f"proxies/{proto}.txt", "w", encoding="utf-8") as f:
-                f.write(text)
+            file_name = f"{proto}.txt"
+
+            text = "\n".join(proxy.SOCKET_ADDRESS for proxy in proxies)
+            (dirs[0] / file_name).write_text(text, encoding="utf-8")
+
             anon_text = "\n".join(
-                proxy.socket_address for proxy in proxies if proxy.is_anonymous
+                proxy.SOCKET_ADDRESS for proxy in proxies if proxy.is_anonymous
             )
-            with open(
-                f"proxies_anonymous/{proto}.txt", "w", encoding="utf-8"
-            ) as f:
-                f.write(anon_text)
+            (dirs[1] / file_name).write_text(anon_text, encoding="utf-8")
 
         # proxies_geolocation and proxies_geolocation_anonymous folders
         if not self.MMDB:
             return
         self.set_geolocation()
+        for dir in dirs[-2:]:
+            dir.mkdir(parents=True, exist_ok=True)
         for proto, proxies in self.proxies.items():
+            file_name = f"{proto}.txt"
+
             text = "\n".join(
-                f"{proxy.socket_address}{proxy.geolocation}"
+                f"{proxy.SOCKET_ADDRESS}{proxy.geolocation}"
                 for proxy in proxies
             )
-            with open(
-                f"proxies_geolocation/{proto}.txt", "w", encoding="utf-8"
-            ) as f:
-                f.write(text)
+            (dirs[2] / file_name).write_text(text, encoding="utf-8")
+
             anon_text = "\n".join(
-                f"{proxy.socket_address}{proxy.geolocation}"
+                f"{proxy.SOCKET_ADDRESS}{proxy.geolocation}"
                 for proxy in proxies
                 if proxy.is_anonymous
             )
-            with open(
-                f"proxies_geolocation_anonymous/{proto}.txt",
-                "w",
-                encoding="utf-8",
-            ) as f:
-                f.write(anon_text)
+            (dirs[3] / file_name).write_text(anon_text, encoding="utf-8")
 
     async def main(self) -> None:
         await self.fetch_all_sources()
@@ -276,7 +278,8 @@ class ProxyScraperChecker:
         self.save_proxies()
 
         logging.info(
-            "Proxy folders have been created in the current directory."
+            "Proxy folders have been created in the %s.",
+            f"{self.PATH} folder" if self.PATH else "current directory",
         )
         logging.info("Thank you for using proxy-scraper-checker :)")
 
@@ -284,7 +287,7 @@ class ProxyScraperChecker:
     def _sorting_key(self) -> Callable[[Proxy], Union[float, Tuple[int, ...]]]:
         if self.SORT_BY_SPEED:
             return lambda proxy: tuple(
-                map(int, proxy.socket_address.replace(":", ".").split("."))
+                map(int, proxy.SOCKET_ADDRESS.replace(":", ".").split("."))
             )
         return lambda proxy: proxy.timeout
 
@@ -299,10 +302,11 @@ async def main() -> None:
         timeout=config.TIMEOUT,
         max_connections=config.MAX_CONNECTIONS,
         sort_by_speed=config.SORT_BY_SPEED,
-        geolite2_city_mmdb="GeoLite2-City.mmdb"
-        if config.GEOLOCATION
-        else None,
+        geolite2_city_mmdb=(
+            "GeoLite2-City.mmdb" if config.GEOLOCATION else None
+        ),
         ip_service=config.IP_SERVICE,
+        save_path=config.SAVE_PATH,
         http_sources=config.HTTP_SOURCES if config.HTTP else None,
         socks4_sources=config.SOCKS4_SOURCES if config.SOCKS4 else None,
         socks5_sources=config.SOCKS5_SOURCES if config.SOCKS5 else None,
