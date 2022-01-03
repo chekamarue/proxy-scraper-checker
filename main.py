@@ -333,10 +333,10 @@ class ProxyScraperChecker:
     @property
     def _sorting_key(self) -> Callable[[Proxy], Union[float, Tuple[int, ...]]]:
         if self.SORT_BY_SPEED:
-            return lambda proxy: tuple(
-                map(int, proxy.SOCKET_ADDRESS.replace(":", ".").split("."))
-            )
-        return lambda proxy: proxy.timeout
+            return lambda proxy: proxy.timeout
+        return lambda proxy: tuple(
+            map(int, proxy.SOCKET_ADDRESS.replace(":", ".").split("."))
+        )
 
     @property
     def _progress(self) -> Progress:

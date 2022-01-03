@@ -3,6 +3,7 @@
 ## 2021-01-03
 
 - Add `SAVE_PATH` option
+- Fix sorting
 
 ## 2021-01-02
 
